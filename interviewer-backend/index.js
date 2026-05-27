@@ -231,6 +231,6 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-server.listen(port, () => {
-  console.log(`Backend server listening on port ${port}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Backend server listening on port ${port} on all interfaces`);
 });
