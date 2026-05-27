@@ -52,28 +52,66 @@ By conducting high-speed, dynamic interviews via the Gemini Live API, we capture
 
 ## 🚀 Running the Development Environment (WSL to Phone)
 
-When developing locally on WSL (Windows Subsystem for Linux) and testing on a physical phone, you must expose your local servers to the internet so your phone can reach them.
+When developing locally on WSL and testing on a physical phone, you need to route requests from your mobile device (on your local Wi-Fi or mobile network) to the backend running inside WSL's virtual network. 
 
-### 1. The Backend Tunnel
-Because your phone cannot connect to your WSL `localhost`, you must run a public tunnel.
+The most reliable, permanent method to achieve this is via **Tailscale**, as it provides static IPs and avoids changing environment files.
 
-```bash
-cd interviewer-backend
-npm start
+---
+
+### Method 1: Using Tailscale (Recommended & Persistent)
+
+Tailscale provides static IPs that do not change between server restarts or network switches.
+
+#### 1. Setup
+* Make sure both your **computer** and **iPhone/Android phone** are connected to your Tailscale network.
+* Find your development computer's Tailscale IP (e.g. `100.67.12.101`).
+
+#### 2. Configure Env Files
+* **Backend (`/interviewer-backend/.env`)**: Set `DATABASE_URL` to your database (e.g., your remote/local tailscale DB IP: `postgres://flash-server:7530@100.66.69.41:5432/interviewer_db`).
+* **Mobile (`/interviewer-mobile/.env`)**: Use your computer's Tailscale IP:
+  ```env
+  EXPO_PUBLIC_API_URL="http://100.67.12.101:3000/api"
+  EXPO_PUBLIC_WS_URL="ws://100.67.12.101:3000"
+  ```
+
+#### 3. WSL Port Forwarding (Run Once on Windows)
+Since WSL runs behind a virtual switch, you must tell Windows to forward incoming Tailscale port 3000 requests into WSL. Run this command **once** in **Windows PowerShell (as Administrator)**:
+```powershell
+netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=127.0.0.1
 ```
-In a **new terminal tab**, expose port 3000 to the internet:
+
+#### 4. Run the Apps
+* **Backend:** Start the node backend. It listens on `0.0.0.0` to receive external requests:
+  ```bash
+  cd interviewer-backend
+  npm run dev
+  ```
+* **Frontend:** Start the Expo server using the LAN host:
+  ```bash
+  cd interviewer-mobile
+  npx expo start --host lan
+  ```
+  Scan the QR code in Expo Go to run the app.
+
+---
+
+### Method 2: Using Tunnels (Fallback, No Tailscale Required)
+
+If you don't have Tailscale installed on your mobile device, you can tunnel your servers temporarily.
+
+#### 1. Expose WSL Backend
+Start the backend and run localtunnel in a new tab:
 ```bash
 npx localtunnel --port 3000
 ```
-*Note: Localtunnel assigns a random URL every time it restarts. If your tunnel URL changes, you MUST update `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_WS_URL` in `/interviewer-mobile/.env` and restart the mobile app to ensure it points to the new backend.*
+This gives you a public URL (e.g., `https://xyz.loca.lt`). Update your `/interviewer-mobile/.env` with this new URL. Note that this URL changes every time the tunnel restarts.
 
-### 2. The Mobile App Tunnel
-To allow your phone's Expo Go app to reach the Metro Bundler on WSL:
+#### 2. Run Expo with Tunnel
+Start Expo using the tunnel flag:
 ```bash
 cd interviewer-mobile
 npx expo start --tunnel
 ```
-Scan the QR code and your phone will securely connect to both the Expo dev server and your tunneled backend!
 
 ---
 
