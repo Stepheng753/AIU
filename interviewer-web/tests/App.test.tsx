@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import App from './App';
+import '@testing-library/jest-dom';
+import App from '../src/App';
 
 describe('App Component Unit Tests', () => {
   it('should render the login card by default', () => {

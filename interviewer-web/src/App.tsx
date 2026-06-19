@@ -133,11 +133,7 @@ function App() {
 
   const saveLastQAPair = async () => {
     const list = dialogueRef.current;
-    console.log('[saveLastQAPair] dialogue list length:', list.length, 'list:', list);
-    if (list.length < 2) {
-      console.log('[saveLastQAPair] Too short to save');
-      return;
-    }
+    if (list.length < 2) return;
     
     let lastUserIdx = -1;
     for (let i = list.length - 1; i >= 0; i--) {
@@ -147,7 +143,6 @@ function App() {
       }
     }
     
-    console.log('[saveLastQAPair] lastUserIdx:', lastUserIdx);
     if (lastUserIdx >= 0) {
       const userMsg = list[lastUserIdx];
       let interviewerMsg = null;
@@ -158,16 +153,11 @@ function App() {
         }
       }
       
-      console.log('[saveLastQAPair] found pair candidate:', interviewerMsg, '->', userMsg);
       if (interviewerMsg && userMsg.text.trim()) {
         const pairKey = `${interviewerMsg.id}-${userMsg.id}`;
-        if (savedPairsRef.current.has(pairKey)) {
-          console.log('[saveLastQAPair] pair already saved:', pairKey);
-          return;
-        }
+        if (savedPairsRef.current.has(pairKey)) return;
         
         savedPairsRef.current.add(pairKey);
-        console.log('[saveLastQAPair] sending save request to backend...', pairKey);
         
         try {
           const res = await fetch(`${API_URL}/pair`, {
@@ -181,9 +171,7 @@ function App() {
               answer: userMsg.text
             })
           });
-          console.log('[saveLastQAPair] response status:', res.status);
           if (res.ok) {
-            console.log('[saveLastQAPair] successfully saved pair:', interviewerMsg.text, '->', userMsg.text);
             fetchHistory();
           } else {
             const errBody = await res.json().catch(() => ({}));
@@ -192,11 +180,7 @@ function App() {
         } catch (err) {
           console.error('[saveLastQAPair] fetch network error saving QA pair:', err);
         }
-      } else {
-        console.log('[saveLastQAPair] conditions not met. interviewerMsg:', interviewerMsg, 'userMsg text:', userMsg?.text);
       }
-    } else {
-      console.log('[saveLastQAPair] no user message found to pair with interviewer question');
     }
   };
 
@@ -388,13 +372,10 @@ function App() {
             accumulatedTranscript += event.results[i][0].transcript;
           }
           const fullTranscript = accumulatedTranscript.trim();
-          console.log('[SpeechRecognition] onresult - raw transcript:', fullTranscript);
           if (fullTranscript) {
             if (!currentUserBubbleIdRef.current) {
-              console.log('[SpeechRecognition] starting a new user chat bubble');
               updateChatBubble('user', fullTranscript, 'new');
             } else {
-              console.log('[SpeechRecognition] updating existing user chat bubble ID:', currentUserBubbleIdRef.current);
               updateChatBubble('user', fullTranscript, 'replace');
             }
           }
@@ -405,7 +386,6 @@ function App() {
         };
 
         recognition.onend = () => {
-          console.log('[SpeechRecognition] service disconnected / ended');
         };
 
         recognitionRef.current = recognition;
@@ -416,7 +396,6 @@ function App() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket proxy connection established');
       };
 
       ws.onmessage = async (event) => {
@@ -465,7 +444,6 @@ function App() {
           // Handle Gemini output transcription (AI Interviewer)
           if (json.serverContent?.outputTranscription?.text) {
             const text = json.serverContent.outputTranscription.text;
-            console.log('[ws.onmessage] Gemini AI transcription segment:', text);
             if (!currentInterviewerBubbleIdRef.current) {
               updateChatBubble('interviewer', text, 'new');
             } else {
@@ -475,7 +453,6 @@ function App() {
           
           // Save dialogue turn to database when finalized
           if (json.serverContent?.turnComplete) {
-            console.log('Turn complete - starting speech recognition');
             currentUserBubbleIdRef.current = null;
             isWaitingForModelResponseRef.current = true;
             if (recognitionRef.current) {
@@ -490,7 +467,6 @@ function App() {
       };
 
       ws.onclose = () => {
-        console.log('WebSocket proxy closed');
         stopVoiceSession();
       };
 
@@ -598,7 +574,7 @@ function App() {
         savedPairsRef.current.add(pairKey);
 
         try {
-          const res = await fetch(`${API_URL}/pair`, {
+          await fetch(`${API_URL}/pair`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -609,9 +585,6 @@ function App() {
               answer: next.text
             })
           });
-          if (res.ok) {
-            console.log('Dialogue pair saved successfully');
-          }
         } catch (err) {
           console.error('Error saving QA pair:', err);
         }

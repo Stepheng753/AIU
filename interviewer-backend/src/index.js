@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -80,7 +80,6 @@ async function initDb() {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("Database schema initialized with SQLite.");
   } catch (err) {
     console.error("Database initialization failed:", err);
   }
@@ -122,7 +121,9 @@ app.post('/api/auth/register', async (req, res) => {
     const user = await dbGet('SELECT id, name, email, created_at FROM users WHERE id = ?', [result.lastID]);
     res.status(201).json(user);
   } catch (err) {
-    console.error('Registration error:', err);
+    if (err.code !== 'SQLITE_CONSTRAINT' || process.env.NODE_ENV !== 'test') {
+      console.error('Registration error:', err);
+    }
     res.status(500).json({ error: 'Failed to register user (email might already exist)' });
   }
 });
@@ -168,18 +169,14 @@ app.post('/api/pair', authenticateToken, async (req, res) => {
     if (!question || !answer) {
       return res.status(400).json({ error: 'Question and answer are required' });
     }
-    console.log(`\n[Database Save] Saving QA Pair for User ID: ${req.user.id}`);
-    console.log(`   Question: "${question}"`);
-    console.log(`   Answer:   "${answer}"`);
     const result = await dbRun(
       'INSERT INTO qa_pairs (user_id, question, answer) VALUES (?, ?, ?)',
       [req.user.id, question, answer]
     );
     const pair = await dbGet('SELECT * FROM qa_pairs WHERE id = ?', [result.lastID]);
-    console.log(`[Database Save] Successfully saved QA Pair ID: ${result.lastID}`);
     res.status(201).json(pair);
   } catch (err) {
-    console.error('[Database Save] Error saving QA pair:', err);
+    console.error('Error saving QA pair:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -251,8 +248,6 @@ app.post('/api/transcribe', authenticateToken, async (req, res) => {
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws, req) => {
-  console.log('Mobile client connected to WebSocket proxy');
-
   // Authenticate WebSocket connection via query string
   const url = new URL(req.url, `http://${req.headers.host}`);
   const token = url.searchParams.get('token');
@@ -278,11 +273,10 @@ wss.on('connection', (ws, req) => {
   }
 
   const GEMINI_WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
-  
+
   const geminiWs = new WebSocket(GEMINI_WS_URL);
 
   geminiWs.on('open', () => {
-    console.log(`BFF successfully connected to Gemini Live API for user ${userId}`);
     ws.send(JSON.stringify({ type: 'proxy_status', status: 'connected' }));
 
     const setupMsg = {
@@ -315,25 +309,12 @@ wss.on('connection', (ws, req) => {
   });
 
   geminiWs.on('message', (data) => {
-    try {
-      const json = JSON.parse(data.toString());
-      if (json.serverContent?.outputTranscription?.text) {
-        console.log(`[AI Transcription Chunk]: ${json.serverContent.outputTranscription.text}`);
-      }
-      if (json.serverContent?.inputTranscription?.text) {
-        console.log(`[User Transcription Chunk from Gemini]: ${json.serverContent.inputTranscription.text}`);
-      }
-    } catch (e) {
-      // Ignore parsing errors for binary audio chunks
-    }
-
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(data.toString());
     }
   });
 
   geminiWs.on('close', (code, reason) => {
-    console.log(`Gemini WS closed: ${code} ${reason}`);
     if (ws.readyState === WebSocket.OPEN) {
       ws.close(code, reason);
     }
@@ -353,7 +334,6 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    console.log(`Mobile client for user ${userId} disconnected from proxy`);
     if (geminiWs.readyState === WebSocket.OPEN) {
       geminiWs.close();
     }
@@ -362,7 +342,6 @@ wss.on('connection', (ws, req) => {
 
 if (process.env.NODE_ENV !== 'test') {
   server.listen(port, '0.0.0.0', () => {
-    console.log(`Backend server listening on port ${port} on all interfaces`);
   });
 }
 
