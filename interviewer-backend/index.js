@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const http = require('http');
 const WebSocket = require('ws');
 const bcrypt = require('bcrypt');
@@ -19,33 +19,68 @@ app.use(cors());
 app.use(express.json());
 
 // Database Configuration
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+const dbPath = process.env.DATABASE_PATH || './interviewer.db';
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Database connection error:', err);
+  } else {
+    db.run('PRAGMA foreign_keys = ON;', (pragmaErr) => {
+      if (pragmaErr) console.error('Failed to enable foreign keys:', pragmaErr);
+    });
+  }
 });
+
+// Promise Helpers for SQLite3
+const dbRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const dbGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const dbAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
 
 async function initDb() {
   try {
-    await pool.query(`
+    await dbRun(`
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    await pool.query(`
+    await dbRun(`
       CREATE TABLE IF NOT EXISTS qa_pairs (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         question TEXT NOT NULL,
         answer TEXT NOT NULL,
-        timestamp TIMESTAMPTZ DEFAULT NOW()
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("Database schema initialized with users and qa_pairs tables.");
+    console.log("Database schema initialized with SQLite.");
   } catch (err) {
     console.error("Database initialization failed:", err);
   }
@@ -79,12 +114,13 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email, created_at',
+    const result = await dbRun(
+      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
       [name, normalizedEmail, password_hash]
     );
 
-    res.status(201).json(result.rows[0]);
+    const user = await dbGet('SELECT id, name, email, created_at FROM users WHERE id = ?', [result.lastID]);
+    res.status(201).json(user);
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Failed to register user (email might already exist)' });
@@ -99,8 +135,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [normalizedEmail]);
-    const user = result.rows[0];
+    const user = await dbGet('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
@@ -119,8 +154,8 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/history', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM qa_pairs WHERE user_id = $1 ORDER BY timestamp ASC', [req.user.id]);
-    res.json(result.rows);
+    const rows = await dbAll('SELECT * FROM qa_pairs WHERE user_id = ? ORDER BY timestamp ASC', [req.user.id]);
+    res.json(rows);
   } catch (err) {
     console.error('Error fetching history:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -133,13 +168,18 @@ app.post('/api/pair', authenticateToken, async (req, res) => {
     if (!question || !answer) {
       return res.status(400).json({ error: 'Question and answer are required' });
     }
-    const result = await pool.query(
-      'INSERT INTO qa_pairs (user_id, question, answer) VALUES ($1, $2, $3) RETURNING *',
+    console.log(`\n[Database Save] Saving QA Pair for User ID: ${req.user.id}`);
+    console.log(`   Question: "${question}"`);
+    console.log(`   Answer:   "${answer}"`);
+    const result = await dbRun(
+      'INSERT INTO qa_pairs (user_id, question, answer) VALUES (?, ?, ?)',
       [req.user.id, question, answer]
     );
-    res.status(201).json(result.rows[0]);
+    const pair = await dbGet('SELECT * FROM qa_pairs WHERE id = ?', [result.lastID]);
+    console.log(`[Database Save] Successfully saved QA Pair ID: ${result.lastID}`);
+    res.status(201).json(pair);
   } catch (err) {
-    console.error('Error saving QA pair:', err);
+    console.error('[Database Save] Error saving QA pair:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -147,7 +187,7 @@ app.post('/api/pair', authenticateToken, async (req, res) => {
 app.delete('/api/pair/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('DELETE FROM qa_pairs WHERE id = $1 AND user_id = $2', [id, req.user.id]);
+    await dbRun('DELETE FROM qa_pairs WHERE id = ? AND user_id = ?', [id, req.user.id]);
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting QA pair:', err);
@@ -157,7 +197,7 @@ app.delete('/api/pair/:id', authenticateToken, async (req, res) => {
 
 app.delete('/api/history', authenticateToken, async (req, res) => {
   try {
-    await pool.query('DELETE FROM qa_pairs WHERE user_id = $1', [req.user.id]);
+    await dbRun('DELETE FROM qa_pairs WHERE user_id = ?', [req.user.id]);
     res.json({ success: true });
   } catch (err) {
     console.error('Error clearing history:', err);
@@ -251,6 +291,7 @@ wss.on('connection', (ws, req) => {
         generationConfig: {
           responseModalities: ['AUDIO']
         },
+        inputAudioTranscription: {},
         outputAudioTranscription: {},
         systemInstruction: {
           parts: [{ text: 'You are a warm, conversational AI interviewer. Your goal is to interview the user about their life stories, career, and personal philosophy to help them preserve their knowledge. Ask one interesting and open-ended question at a time. Keep your questions relatively short, and wait for their response. Start by welcoming the user and asking the first question.' }]
@@ -274,6 +315,18 @@ wss.on('connection', (ws, req) => {
   });
 
   geminiWs.on('message', (data) => {
+    try {
+      const json = JSON.parse(data.toString());
+      if (json.serverContent?.outputTranscription?.text) {
+        console.log(`[AI Transcription Chunk]: ${json.serverContent.outputTranscription.text}`);
+      }
+      if (json.serverContent?.inputTranscription?.text) {
+        console.log(`[User Transcription Chunk from Gemini]: ${json.serverContent.inputTranscription.text}`);
+      }
+    } catch (e) {
+      // Ignore parsing errors for binary audio chunks
+    }
+
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(data.toString());
     }
@@ -307,6 +360,10 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Backend server listening on port ${port} on all interfaces`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`Backend server listening on port ${port} on all interfaces`);
+  });
+}
+
+module.exports = { app, server, db };
