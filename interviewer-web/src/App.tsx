@@ -46,6 +46,45 @@ const parseUTCTimestamp = (ts: string) => {
   return isNaN(date.getTime()) ? new Date(ts) : date;
 };
 
+const formatTranscriptText = (text: string): string => {
+  if (!text) return '';
+
+  // 1. Capitalize the first letter of the overall text and any letter following sentence-ending punctuation (. ? !)
+  let formatted = text.replace(/(^\s*|[.!?]\s+)([a-z])/gi, (_match, prefix, char) => {
+    return prefix + char.toUpperCase();
+  });
+
+  // Ensure the very first non-whitespace character is capitalized
+  formatted = formatted.trim();
+  if (formatted.length > 0) {
+    formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+
+  // 2. Wrap filler words in asterisks for italics formatting
+  const fillerRegex = /\b(um|umm|uh|uhh|er|ah|err)\b/gi;
+  formatted = formatted.replace(fillerRegex, (match) => {
+    return `*${match}*`;
+  });
+
+  return formatted;
+};
+
+const renderMessageText = (text: string) => {
+  if (!text) return null;
+  const parts = text.split(/(\*[^*]+\*)/g);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return <em key={index} className="opacity-80 italic font-medium">{part.slice(1, -1)}</em>;
+        }
+        return part;
+      })}
+    </>
+  );
+};
+
+
 function App() {
   // Theme state defaulting to system theme
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -428,10 +467,11 @@ function App() {
           }
           const fullTranscript = accumulatedTranscript.trim();
           if (fullTranscript) {
+            const formatted = formatTranscriptText(fullTranscript);
             if (!currentUserBubbleIdRef.current) {
-              updateChatBubble('user', fullTranscript, 'new');
+              updateChatBubble('user', formatted, 'new');
             } else {
-              updateChatBubble('user', fullTranscript, 'replace');
+              updateChatBubble('user', formatted, 'replace');
             }
           }
         };
@@ -492,6 +532,20 @@ function App() {
                 } else {
                   updateChatBubble('interviewer', part.text, 'append');
                 }
+              }
+            }
+          }
+
+          // Handle Gemini input transcription (User's speech)
+          if (json.serverContent?.inputTranscription?.text) {
+            const rawText = json.serverContent.inputTranscription.text;
+            console.log('[Gemini Input Transcription] Received:', rawText);
+            const formatted = formatTranscriptText(rawText);
+            if (formatted) {
+              if (!currentUserBubbleIdRef.current) {
+                updateChatBubble('user', formatted, 'new');
+              } else {
+                updateChatBubble('user', formatted, 'replace');
               }
             }
           }
@@ -977,7 +1031,7 @@ function App() {
             <>
               {dialogue.map((entry) => (
                 <div key={entry.id} className={`dialogue-bubble ${entry.role}`}>
-                  <p>{entry.text}</p>
+                  <p>{renderMessageText(entry.text)}</p>
                   <span className="bubble-meta">
                     {entry.role === 'interviewer' ? 'Gemini AI' : user?.name || 'User'} • {entry.timestamp.toLocaleTimeString()}
                   </span>

@@ -20,7 +20,7 @@ BACKEND_PID=$!
 
 # Start frontend Vite server
 echo "💻 Starting frontend Vite server on port 5173..."
-(cd interviewer-web && npm run dev -- --host 0.0.0.0) &
+(cd interviewer-web && npm run dev) &
 FRONTEND_PID=$!
 
 echo "--------------------------------------------------------"
