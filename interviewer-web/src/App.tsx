@@ -1,31 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  Trash2, Calendar, User, Lock, Mail,
-  MessageSquare, RefreshCw, AlertCircle, Menu, X
-} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Menu, X } from 'lucide-react';
 import './App.css';
 import InkReveal from './components/ui/ink-reveal';
-import { VoiceChat } from './components/ui/ia-siri-chat';
-import { AVAILABLE_THEMES, parseColorToRgb, getContrastMaskColor } from './themes/registry';
+import { parseColorToRgb, getContrastMaskColor } from './themes/registry';
+import UserSettings from './components/UserSettings';
+import ThemesView from './components/ThemesView';
+import AuthView from './components/AuthView';
+import HistoryView from './components/HistoryView';
+import ChatView from './components/ChatView';
 
 // Build-time environment config with fallback values
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
 
-interface UserProfile {
+export interface UserProfile {
   id: number;
   name: string;
   email: string;
 }
 
-interface QAPair {
+export interface QAPair {
   id: number;
   question: string;
   answer: string;
   timestamp: string;
 }
 
-interface ChatLogEntry {
+export interface ChatLogEntry {
   id: string;
   role: 'interviewer' | 'user';
   text: string;
@@ -85,182 +86,7 @@ const renderMessageText = (text: string) => {
   );
 };
 
-function UserSettings({ user, token, apiURL, onUpdateProfile, onClearHistory, hasHistory }: { 
-  user: UserProfile | null, 
-  token: string | null, 
-  apiURL: string, 
-  onUpdateProfile: (user: UserProfile, token?: string) => void,
-  onClearHistory: () => void,
-  hasHistory: boolean
-}) {
-  const [editField, setEditField] = useState<'name' | 'email' | 'password' | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
-  const startEdit = (field: 'name' | 'email' | 'password') => {
-    setError('');
-    setSuccess('');
-    setEditField(field);
-    if (field === 'name') {
-      setEditValue(user?.name || '');
-    } else if (field === 'email') {
-      setEditValue(user?.email || '');
-    } else {
-      setEditValue('');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!editField) return;
-    setError('');
-    setSuccess('');
-    setIsSaving(true);
-
-    try {
-      const payload: any = {};
-      if (editField === 'name') payload.name = editValue;
-      if (editField === 'email') payload.email = editValue;
-      if (editField === 'password') payload.password = editValue;
-
-      const res = await fetch(`${apiURL}/auth/me`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        onUpdateProfile(data.user, data.token);
-        setSuccess(`${editField === 'password' ? 'Password' : editField === 'name' ? 'Display Name' : 'Email Address'} updated successfully!`);
-        setEditField(null);
-      } else {
-        setError(data.error || 'Failed to update user profile');
-      }
-    } catch (err) {
-      setError('Network error updating user settings');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="settings-container">
-      {error && <div className="error-banner" style={{ margin: 0 }}>{error}</div>}
-      {success && <div className="success-banner">{success}</div>}
-
-      {/* Name Field */}
-      <div className="settings-field-group">
-        <label className="settings-field-label">Display Name</label>
-        {editField === 'name' ? (
-          <div className="settings-input-group">
-            <input 
-              type="text" 
-              className="settings-input"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              placeholder="Display Name"
-              disabled={isSaving}
-              autoFocus
-            />
-            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div className="settings-field-row">
-            <span className="settings-field-value">{user?.name}</span>
-            <button className="settings-edit-btn" onClick={() => startEdit('name')}>Edit</button>
-          </div>
-        )}
-      </div>
-
-      {/* Email Field */}
-      <div className="settings-field-group">
-        <label className="settings-field-label">Email Address</label>
-        {editField === 'email' ? (
-          <div className="settings-input-group">
-            <input 
-              type="email" 
-              className="settings-input"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              placeholder="you@domain.com"
-              disabled={isSaving}
-              autoFocus
-            />
-            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div className="settings-field-row">
-            <span className="settings-field-value">{user?.email}</span>
-            <button className="settings-edit-btn" onClick={() => startEdit('email')}>Edit</button>
-          </div>
-        )}
-      </div>
-
-      {/* Password Field */}
-      <div className="settings-field-group">
-        <label className="settings-field-label">Password</label>
-        {editField === 'password' ? (
-          <div className="settings-input-group">
-            <input 
-              type="password" 
-              className="settings-input"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              placeholder="••••••••"
-              disabled={isSaving}
-              autoFocus
-            />
-            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div className="settings-field-row">
-            <span className="settings-field-value">************</span>
-            <button className="settings-edit-btn" onClick={() => startEdit('password')}>Edit</button>
-          </div>
-        )}
-      </div>
-
-      {/* Danger Zone */}
-      {hasHistory && (
-        <div className="settings-field-group" style={{ borderBottom: 'none', marginTop: '10px' }}>
-          <label className="settings-field-label" style={{ color: 'var(--destructive)' }}>Danger Zone</label>
-          <div className="settings-field-row">
-            <span className="settings-field-value" style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
-              Permanently delete all question & answer pairs.
-            </span>
-            <button 
-              className="settings-edit-btn" 
-              style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)' }}
-              onClick={onClearHistory}
-            >
-              Clear History
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function App() {
   // Theme mode state (light/dark) defaulting to system theme
@@ -331,9 +157,6 @@ function App() {
     localStorage.setItem('activeTheme', activeTheme);
   }, [activeTheme]);
 
-  // Navigation View
-  const [currentView, setCurrentView] = useState<'login' | 'register' | 'dashboard'>('login');
-
   // Dashboard Sub-Views State
   const [dashboardView, setDashboardView] = useState<'chat' | 'history' | 'themes' | 'settings'>('chat');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -351,13 +174,11 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // Form Fields
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [authError, setAuthError] = useState('');
+  // Auth Success Handler
+  const handleAuthSuccess = (newToken: string, activeUser: UserProfile) => {
+    setToken(newToken);
+    setUser(activeUser);
+  };
 
   // Dashboard & History States
   const [history, setHistory] = useState<QAPair[]>([]);
@@ -508,14 +329,12 @@ function App() {
     } else {
       localStorage.removeItem('token');
       setUser(null);
-      setCurrentView('login');
     }
   }, [token]);
 
   // Load history when user is authenticated
   useEffect(() => {
     if (user) {
-      setCurrentView('dashboard');
       fetchHistory();
     }
   }, [user]);
@@ -579,58 +398,11 @@ function App() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    try {
-      const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: regName, email: regEmail, password: regPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        // Automatically transfer to login screen
-        setLoginEmail(regEmail);
-        setCurrentView('login');
-        setRegName('');
-        setRegEmail('');
-        setRegPassword('');
-      } else {
-        setAuthError(data.error || 'Registration failed');
-      }
-    } catch (err) {
-      setAuthError('Connection to server failed');
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setToken(data.token);
-        setUser(data.user);
-      } else {
-        setAuthError(data.error || 'Login failed');
-      }
-    } catch (err) {
-      setAuthError('Connection to server failed');
-    }
-  };
-
   const handleLogout = () => {
     stopVoiceSession();
     setToken(null);
     setUser(null);
     setDialogue([]);
-    setCurrentView('login');
   };
 
   const deletePair = async (id: number) => {
@@ -1025,144 +797,13 @@ function App() {
 
   // --- Render Functions ---
 
-  if (currentView === 'login' || currentView === 'register') {
+  if (!token) {
     return (
-      <div className="auth-container">
-        <InkReveal maskColor={computedMaskColor} />
-        <div className="auth-card">
-          <div className="auth-header">
-            <div className="logo-container" style={{ justifyContent: 'center', marginBottom: '15px' }}>
-              <MessageSquare className="logo-icon animate-pulse" size={36} />
-              <h1 style={{ margin: 0 }}>Interview.ai</h1>
-            </div>
-            <p>{currentView === 'login' ? 'Preserve your Legacy & Knowledge' : 'Create your Secure Personal Vault'}</p>
-          </div>
-
-          {authError && (
-            <div className="error-banner">
-              <AlertCircle size={16} style={{ marginRight: '8px', verticalAlign: 'middle', display: 'inline' }} />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          {currentView === 'login' ? (
-            <form onSubmit={handleLogin}>
-              <div className="form-group">
-                <label>Email Address</label>
-                <div style={{ position: 'relative' }}>
-                  <Mail style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="username"
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                    placeholder="you@domain.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input
-                    type="password"
-                    name="password"
-                    autoComplete="current-password"
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <button type="submit" className="auth-btn">Log In</button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister}>
-              {/* Dummy hidden inputs to prevent Chrome autofill from misaligning fields */}
-              <input type="text" name="chrome_dummy_username" style={{ display: 'none' }} />
-              <input type="password" name="chrome_dummy_password" style={{ display: 'none' }} />
-
-              <div className="form-group">
-                <label>Display Name</label>
-                <div style={{ position: 'relative' }}>
-                  <User style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input
-                    type="text"
-                    name="name"
-                    autoComplete="name"
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                    placeholder="John Doe"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Email Address</label>
-                <div style={{ position: 'relative' }}>
-                  <Mail style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="username"
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                    placeholder="you@domain.com"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Secure Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input
-                    type="password"
-                    name="password"
-                    autoComplete="new-password"
-                    className="form-input"
-                    style={{ paddingLeft: '40px' }}
-                    placeholder="••••••••"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <button type="submit" className="auth-btn">Register Account</button>
-            </form>
-          )}
-
-          <div className="auth-footer">
-            {currentView === 'login' ? (
-              <>
-                New to the platform?{' '}
-                <span className="auth-link" onClick={() => { setCurrentView('register'); setAuthError(''); }}>
-                  Register here
-                </span>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <span className="auth-link" onClick={() => { setCurrentView('login'); setAuthError(''); }}>
-                  Log In
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <AuthView
+        apiURL={API_URL}
+        computedMaskColor={computedMaskColor}
+        onAuthSuccess={handleAuthSuccess}
+      />
     );
   }
 
@@ -1229,146 +870,51 @@ function App() {
             /* Active view content */
             <>
               {dashboardView === 'chat' && (
-                <div className="chat-view-container" key="chat">
-                  {/* Dialogue Area */}
-                  <section className="dialogue-container">
-                    {dialogue.length === 0 ? null : (
-                      <>
-                        {dialogue.map((entry) => (
-                          <div key={entry.id} className={`dialogue-bubble ${entry.role}`}>
-                            <p>{renderMessageText(entry.text)}</p>
-                            <span className="bubble-meta">
-                              {entry.role === 'interviewer' ? 'Gemini AI' : user?.name || 'User'} • {entry.timestamp.toLocaleTimeString()}
-                            </span>
-                          </div>
-                        ))}
-                        <div ref={dialogueEndRef} />
-                      </>
-                    )}
-                  </section>
-
-                  {/* Floating Centered Mic Control */}
-                  <div className="floating-mic-container">
-                    <VoiceChat
-                      isListening={isVoiceActive && wsStatus === 'connected' && !isSpeaking}
-                      isProcessing={wsStatus === 'connecting'}
-                      isSpeaking={isSpeaking}
-                      onClick={isVoiceActive ? stopVoiceSession : startVoiceSession}
-                      statusText={
-                        wsStatus === 'connecting'
-                          ? 'NEGOTIATING HANDSHAKE...'
-                          : wsStatus === 'connected'
-                            ? (isSpeaking ? 'GEMINI TALKING...' : 'STREAMING SOUND INPUT • CLICK TO FINISH')
-                            : 'CONSOLE IDLE • UNMUTE MIC TO CHAT'
-                      }
-                      disabled={wsStatus === 'connecting'}
-                    />
-                  </div>
-                </div>
+                <ChatView
+                  dialogue={dialogue}
+                  user={user}
+                  isVoiceActive={isVoiceActive}
+                  wsStatus={wsStatus}
+                  isSpeaking={isSpeaking}
+                  startVoiceSession={startVoiceSession}
+                  stopVoiceSession={stopVoiceSession}
+                  dialogueEndRef={dialogueEndRef}
+                  renderMessageText={renderMessageText}
+                />
               )}
 
               {dashboardView === 'history' && (
-                <div className="history-view-container" key="history">
-                  <div className="history-container">
-                    {isLoadingHistory ? (
-                      <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
-                        <RefreshCw size={24} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
-                        <span>Loading history...</span>
-                      </div>
-                    ) : history.length === 0 ? (
-                      <div className="empty-history" style={{ padding: '40px 20px' }}>
-                        No conversation records. Start an interview to capture your thoughts!
-                      </div>
-                    ) : (
-                      <div className="history-list-wrapper">
-                        {history.map((item) => (
-                          <div key={item.id} className="history-block">
-                            <div className="history-block-q">Q: {item.question}</div>
-                            <div className="history-block-a">A: {item.answer}</div>
-                            <div className="history-block-footer">
-                              <span>
-                                <Calendar size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                                {parseUTCTimestamp(item.timestamp).toLocaleDateString()} {parseUTCTimestamp(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <button 
-                              className="history-block-trash" 
-                              onClick={() => deletePair(item.id)} 
-                              title="Delete QA pair"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <HistoryView
+                  isLoadingHistory={isLoadingHistory}
+                  history={history}
+                  deletePair={deletePair}
+                  parseUTCTimestamp={parseUTCTimestamp}
+                />
               )}
 
               {dashboardView === 'themes' && (
-                <div className="themes-view-container" key="themes">
-                  <div className="themes-content-wrapper">
-                    <div className="themes-header-section">
-                      <span className="themes-section-title">Appearance Mode</span>
-                      <div className="mode-toggle-group">
-                        <button 
-                          className={`mode-btn ${theme === 'light' ? 'active' : ''}`}
-                          onClick={() => setTheme('light')}
-                        >
-                          Light
-                        </button>
-                        <button 
-                          className={`mode-btn ${theme === 'dark' ? 'active' : ''}`}
-                          onClick={() => setTheme('dark')}
-                        >
-                          Dark
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="themes-divider"></div>
-                    
-                    <div className="themes-header-section">
-                      <span className="themes-section-title">Color Palette</span>
-                      <span className="themes-section-subtitle">Choose from 40 custom design theme profiles.</span>
-                    </div>
-
-                    <div className="themes-grid">
-                      {AVAILABLE_THEMES.map((t) => (
-                        <div 
-                          key={t.id}
-                          className={`theme-card ${activeTheme === t.id ? 'active' : ''}`}
-                          onClick={() => setActiveTheme(t.id)}
-                        >
-                          <div className="theme-color-preview" style={{ backgroundColor: t.previewColor }}></div>
-                          <div className="theme-meta-info">
-                            <div className="theme-name">{t.name}</div>
-                            <div className="theme-desc">{t.description}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ThemesView
+                  theme={theme}
+                  setTheme={setTheme}
+                  activeTheme={activeTheme}
+                  setActiveTheme={setActiveTheme}
+                />
               )}
 
               {dashboardView === 'settings' && (
-                <div className="settings-view-container" key="settings">
-                  <UserSettings 
-                    user={user} 
-                    token={token} 
-                    apiURL={API_URL} 
-                    onUpdateProfile={(updatedUser, newToken) => {
-                      setUser(updatedUser);
-                      if (newToken) {
-                        setToken(newToken);
-                      }
-                    }}
-                    onClearHistory={clearHistory}
-                    hasHistory={history.length > 0}
-                  />
-                </div>
+                <UserSettings
+                  user={user}
+                  token={token}
+                  apiURL={API_URL}
+                  onUpdateProfile={(updatedUser, newToken) => {
+                    setUser(updatedUser);
+                    if (newToken) {
+                      setToken(newToken);
+                    }
+                  }}
+                  onClearHistory={clearHistory}
+                  hasHistory={history.length > 0}
+                />
               )}
             </>
           )}
