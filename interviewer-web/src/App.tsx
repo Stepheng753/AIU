@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Mic, MicOff, LogOut, Trash2, Calendar, User, Lock, Mail, 
+import {
+  LogOut, Trash2, Calendar, User, Lock, Mail,
   MessageSquare, RefreshCw, AlertCircle, Shield, Sun, Moon
 } from 'lucide-react';
 import './App.css';
+import InkReveal from './components/ui/ink-reveal';
+import { VoiceChat } from './components/ui/ia-siri-chat';
 
 // Build-time environment config with fallback values
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -29,6 +31,21 @@ interface ChatLogEntry {
   timestamp: Date;
 }
 
+const parseUTCTimestamp = (ts: string) => {
+  if (!ts) return new Date();
+  let formatted = ts.trim();
+  if (!formatted.includes('T')) {
+    formatted = formatted.replace(' ', 'T');
+  }
+  const hasTimezone = formatted.endsWith('Z') || 
+                      (formatted.includes('T') && (formatted.indexOf('+', formatted.indexOf('T')) !== -1 || formatted.indexOf('-', formatted.indexOf('T')) !== -1));
+  if (!hasTimezone) {
+    formatted += 'Z';
+  }
+  const date = new Date(formatted);
+  return isNaN(date.getTime()) ? new Date(ts) : date;
+};
+
 function App() {
   // Theme state defaulting to system theme
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -53,11 +70,11 @@ function App() {
 
   // Navigation View
   const [currentView, setCurrentView] = useState<'login' | 'register' | 'dashboard'>('login');
-  
+
   // Auth State
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<UserProfile | null>(null);
-  
+
   // Form Fields
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -74,13 +91,15 @@ function App() {
   // WebSocket Voice Session States
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [wsStatus, setWsStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speakingTimeoutRef = useRef<any>(null);
 
   // Web Audio refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const nextPlaybackTimeRef = useRef<number>(0);
-  
+
   // Socket ref
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -155,7 +174,7 @@ function App() {
   const saveLastQAPair = async () => {
     const list = dialogueRef.current;
     if (list.length < 2) return;
-    
+
     let lastUserIdx = -1;
     for (let i = list.length - 1; i >= 0; i--) {
       if (list[i].role === 'user') {
@@ -163,7 +182,7 @@ function App() {
         break;
       }
     }
-    
+
     if (lastUserIdx >= 0) {
       const userMsg = list[lastUserIdx];
       let interviewerMsg = null;
@@ -173,13 +192,13 @@ function App() {
           break;
         }
       }
-      
+
       if (interviewerMsg && userMsg.text.trim()) {
         const pairKey = `${interviewerMsg.id}-${userMsg.id}`;
         if (savedPairsRef.current.has(pairKey)) return;
-        
+
         savedPairsRef.current.add(pairKey);
-        
+
         try {
           const res = await fetch(`${API_URL}/pair`, {
             method: 'POST',
@@ -233,11 +252,11 @@ function App() {
   const fetchUserProfile = async () => {
     try {
       if (!token) return;
-      
+
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -437,7 +456,7 @@ function App() {
       ws.onmessage = async (event) => {
         try {
           const json = JSON.parse(event.data);
-          
+
           if (json.type === 'proxy_status' && json.status === 'connected') {
             setWsStatus('connected');
             // Audio recording pipeline
@@ -451,7 +470,7 @@ function App() {
               if (recognitionRef.current) {
                 try {
                   recognitionRef.current.stop();
-                } catch (e) {}
+                } catch (e) { }
               }
 
               // Save the previous Q&A pair before starting new model turn
@@ -486,7 +505,7 @@ function App() {
               updateChatBubble('interviewer', text, 'append');
             }
           }
-          
+
           // Save dialogue turn to database when finalized
           if (json.serverContent?.turnComplete) {
             currentUserBubbleIdRef.current = null;
@@ -494,7 +513,7 @@ function App() {
             if (recognitionRef.current) {
               try {
                 recognitionRef.current.start();
-              } catch (e) {}
+              } catch (e) { }
             }
           }
         } catch (err) {
@@ -520,7 +539,7 @@ function App() {
 
   const setupAudioProcessor = (stream: MediaStream, audioContext: AudioContext) => {
     const source = audioContext.createMediaStreamSource(stream);
-    
+
     // Create ScriptProcessor for capturing raw mic buffer chunks
     const processor = audioContext.createScriptProcessor(2048, 1, 1);
     scriptProcessorRef.current = processor;
@@ -556,6 +575,11 @@ function App() {
   const stopVoiceSession = () => {
     setIsVoiceActive(false);
     setWsStatus('disconnected');
+    setIsSpeaking(false);
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
+    }
 
     // Tear down WebSocket connection
     if (wsRef.current) {
@@ -569,7 +593,7 @@ function App() {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
       recognitionRef.current = null;
     }
 
@@ -602,7 +626,7 @@ function App() {
   // Extract completed Q&A pairs from current dialogue list and save to SQLite
   const saveDialoguePairs = async () => {
     if (dialogueRef.current.length < 2 || !token) return;
-    
+
     // Scan dialogue logs sequentially for adjacent Interviewer -> User pairs
     for (let i = 0; i < dialogueRef.current.length - 1; i++) {
       const current = dialogueRef.current[i];
@@ -611,7 +635,7 @@ function App() {
       if (current.role === 'interviewer' && next.role === 'user') {
         const pairKey = `${current.id}-${next.id}`;
         if (savedPairsRef.current.has(pairKey)) continue;
-        
+
         savedPairsRef.current.add(pairKey);
 
         try {
@@ -670,6 +694,16 @@ function App() {
 
       source.start(nextPlaybackTimeRef.current);
       nextPlaybackTimeRef.current += audioBuffer.duration;
+
+      // Handle isSpeaking state mapping
+      setIsSpeaking(true);
+      const timeRemainingMs = (nextPlaybackTimeRef.current - audioCtx.currentTime) * 1000;
+      if (speakingTimeoutRef.current) {
+        clearTimeout(speakingTimeoutRef.current);
+      }
+      speakingTimeoutRef.current = setTimeout(() => {
+        setIsSpeaking(false);
+      }, timeRemainingMs);
     } catch (err) {
       console.error('Failed to play decoded PCM chunk:', err);
     }
@@ -701,15 +735,17 @@ function App() {
   // --- Render Functions ---
 
   if (currentView === 'login' || currentView === 'register') {
+    const maskColor: [number, number, number] = theme === 'dark' ? [24, 26, 36] : [245, 247, 250];
     return (
       <div className="auth-container">
+        <InkReveal maskColor={maskColor} />
         <div className="auth-card">
           <div className="auth-header">
             <div className="logo-container" style={{ justifyContent: 'center', marginBottom: '15px' }}>
               <MessageSquare className="logo-icon animate-pulse" size={36} />
               <h1 style={{ margin: 0 }}>Interview.ai</h1>
             </div>
-            <p>{currentView === 'login' ? 'Preserve your legacy & knowledge' : 'Create your secure personal vault'}</p>
+            <p>{currentView === 'login' ? 'Preserve your Legacy & Knowledge' : 'Create your Secure Personal Vault'}</p>
           </div>
 
           {authError && (
@@ -725,14 +761,16 @@ function App() {
                 <label>Email Address</label>
                 <div style={{ position: 'relative' }}>
                   <Mail style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input 
-                    type="email" 
-                    className="form-input" 
-                    style={{ paddingLeft: '40px' }} 
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="username"
+                    className="form-input"
+                    style={{ paddingLeft: '40px' }}
                     placeholder="you@domain.com"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -740,14 +778,16 @@ function App() {
                 <label>Password</label>
                 <div style={{ position: 'relative' }}>
                   <Lock style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input 
-                    type="password" 
-                    className="form-input" 
-                    style={{ paddingLeft: '40px' }} 
+                  <input
+                    type="password"
+                    name="password"
+                    autoComplete="current-password"
+                    className="form-input"
+                    style={{ paddingLeft: '40px' }}
                     placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -755,18 +795,24 @@ function App() {
             </form>
           ) : (
             <form onSubmit={handleRegister}>
+              {/* Dummy hidden inputs to prevent Chrome autofill from misaligning fields */}
+              <input type="text" name="chrome_dummy_username" style={{ display: 'none' }} />
+              <input type="password" name="chrome_dummy_password" style={{ display: 'none' }} />
+
               <div className="form-group">
                 <label>Display Name</label>
                 <div style={{ position: 'relative' }}>
                   <User style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ paddingLeft: '40px' }} 
+                  <input
+                    type="text"
+                    name="name"
+                    autoComplete="name"
+                    className="form-input"
+                    style={{ paddingLeft: '40px' }}
                     placeholder="John Doe"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -774,14 +820,16 @@ function App() {
                 <label>Email Address</label>
                 <div style={{ position: 'relative' }}>
                   <Mail style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input 
-                    type="email" 
-                    className="form-input" 
-                    style={{ paddingLeft: '40px' }} 
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="username"
+                    className="form-input"
+                    style={{ paddingLeft: '40px' }}
                     placeholder="you@domain.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -789,14 +837,16 @@ function App() {
                 <label>Secure Password</label>
                 <div style={{ position: 'relative' }}>
                   <Lock style={{ position: 'absolute', left: '12px', top: '14px', color: '#6b7280' }} size={18} />
-                  <input 
-                    type="password" 
-                    className="form-input" 
-                    style={{ paddingLeft: '40px' }} 
+                  <input
+                    type="password"
+                    name="password"
+                    autoComplete="new-password"
+                    className="form-input"
+                    style={{ paddingLeft: '40px' }}
                     placeholder="••••••••"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -855,7 +905,7 @@ function App() {
                   <div className="history-meta">
                     <span>
                       <Calendar size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                      {new Date(item.timestamp).toLocaleDateString()}
+                      {parseUTCTimestamp(item.timestamp).toLocaleDateString()} {parseUTCTimestamp(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button className="delete-item-btn" onClick={() => deletePair(item.id)} title="Delete recording">
                       <Trash2 size={14} />
@@ -897,8 +947,8 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              className="theme-toggle-btn" 
+            <button
+              className="theme-toggle-btn"
               onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
             >
@@ -919,7 +969,7 @@ function App() {
               <Shield className="welcome-icon" size={64} />
               <h2>Voice Archiving Console</h2>
               <p style={{ maxWidth: '450px', textAlign: 'center', marginTop: '8px' }}>
-                Toggle the microphone button below to initiate a secure live stream. 
+                Toggle the microphone button below to initiate a secure live stream.
                 Answer the AI interviewer's questions to preserve your legacy.
               </p>
             </div>
@@ -939,42 +989,21 @@ function App() {
         </section>
 
         {/* Voice control dashboard */}
-        <footer className="control-bar">
-          <button 
-            className={`mic-toggle-btn ${wsStatus === 'connecting' ? 'loading' : wsStatus === 'connected' ? 'active' : ''}`}
-            onClick={wsStatus === 'connecting' ? undefined : (isVoiceActive ? stopVoiceSession : startVoiceSession)}
+        <footer className="control-bar" style={{ padding: '20px 30px' }}>
+          <VoiceChat
+            isListening={isVoiceActive && wsStatus === 'connected' && !isSpeaking}
+            isProcessing={wsStatus === 'connecting'}
+            isSpeaking={isSpeaking}
+            onClick={isVoiceActive ? stopVoiceSession : startVoiceSession}
+            statusText={
+              wsStatus === 'connecting'
+                ? 'NEGOTIATING HANDSHAKE...'
+                : wsStatus === 'connected'
+                  ? (isSpeaking ? 'GEMINI TALKING...' : 'STREAMING SOUND INPUT • CLICK TO FINISH')
+                  : 'CONSOLE IDLE • UNMUTE MIC TO CHAT'
+            }
             disabled={wsStatus === 'connecting'}
-            title={wsStatus === 'connecting' ? 'Connecting...' : (isVoiceActive ? 'Mute Session' : 'Unmute Session')}
-          >
-            {wsStatus === 'connecting' ? (
-              <RefreshCw className="animate-spin" size={32} />
-            ) : isVoiceActive ? (
-              <Mic size={32} />
-            ) : (
-              <MicOff size={32} />
-            )}
-          </button>
-          
-          <div style={{ color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600 }}>
-            {wsStatus === 'connecting' 
-              ? 'NEGOTIATING HANDSHAKE...' 
-              : wsStatus === 'connected' 
-              ? 'STREAMING SOUND INPUT • CLICK TO FINISH' 
-              : 'CONSOLE IDLE • UNMUTE MIC TO CHAT'}
-          </div>
-
-          <div className="waves-container">
-            {[...Array(9)].map((_, i) => (
-              <div 
-                key={i} 
-                className={`audio-wave-bar ${wsStatus === 'connected' ? 'animating' : ''}`}
-                style={{ 
-                  animationDelay: `${i * 0.15}s`,
-                  height: wsStatus === 'connected' ? undefined : '4px' 
-                }}
-              />
-            ))}
-          </div>
+          />
         </footer>
       </main>
     </div>
