@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  LogOut, Trash2, Calendar, User, Lock, Mail,
-  MessageSquare, RefreshCw, AlertCircle, Shield, Sun, Moon
+  Trash2, Calendar, User, Lock, Mail,
+  MessageSquare, RefreshCw, AlertCircle, Menu, X
 } from 'lucide-react';
 import './App.css';
 import InkReveal from './components/ui/ink-reveal';
@@ -84,6 +84,182 @@ const renderMessageText = (text: string) => {
   );
 };
 
+function UserSettings({ user, token, apiURL, onUpdateProfile, onClearHistory, hasHistory }: { 
+  user: UserProfile | null, 
+  token: string | null, 
+  apiURL: string, 
+  onUpdateProfile: (user: UserProfile, token?: string) => void,
+  onClearHistory: () => void,
+  hasHistory: boolean
+}) {
+  const [editField, setEditField] = useState<'name' | 'email' | 'password' | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const startEdit = (field: 'name' | 'email' | 'password') => {
+    setError('');
+    setSuccess('');
+    setEditField(field);
+    if (field === 'name') {
+      setEditValue(user?.name || '');
+    } else if (field === 'email') {
+      setEditValue(user?.email || '');
+    } else {
+      setEditValue('');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editField) return;
+    setError('');
+    setSuccess('');
+    setIsSaving(true);
+
+    try {
+      const payload: any = {};
+      if (editField === 'name') payload.name = editValue;
+      if (editField === 'email') payload.email = editValue;
+      if (editField === 'password') payload.password = editValue;
+
+      const res = await fetch(`${apiURL}/auth/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        onUpdateProfile(data.user, data.token);
+        setSuccess(`${editField === 'password' ? 'Password' : editField === 'name' ? 'Display Name' : 'Email Address'} updated successfully!`);
+        setEditField(null);
+      } else {
+        setError(data.error || 'Failed to update user profile');
+      }
+    } catch (err) {
+      setError('Network error updating user settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-container">
+      {error && <div className="error-banner" style={{ margin: 0 }}>{error}</div>}
+      {success && <div className="success-banner">{success}</div>}
+
+      {/* Name Field */}
+      <div className="settings-field-group">
+        <label className="settings-field-label">Display Name</label>
+        {editField === 'name' ? (
+          <div className="settings-input-group">
+            <input 
+              type="text" 
+              className="settings-input"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder="Display Name"
+              disabled={isSaving}
+              autoFocus
+            />
+            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="settings-field-row">
+            <span className="settings-field-value">{user?.name}</span>
+            <button className="settings-edit-btn" onClick={() => startEdit('name')}>Edit</button>
+          </div>
+        )}
+      </div>
+
+      {/* Email Field */}
+      <div className="settings-field-group">
+        <label className="settings-field-label">Email Address</label>
+        {editField === 'email' ? (
+          <div className="settings-input-group">
+            <input 
+              type="email" 
+              className="settings-input"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder="you@domain.com"
+              disabled={isSaving}
+              autoFocus
+            />
+            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="settings-field-row">
+            <span className="settings-field-value">{user?.email}</span>
+            <button className="settings-edit-btn" onClick={() => startEdit('email')}>Edit</button>
+          </div>
+        )}
+      </div>
+
+      {/* Password Field */}
+      <div className="settings-field-group">
+        <label className="settings-field-label">Password</label>
+        {editField === 'password' ? (
+          <div className="settings-input-group">
+            <input 
+              type="password" 
+              className="settings-input"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder="••••••••"
+              disabled={isSaving}
+              autoFocus
+            />
+            <button className="settings-action-btn settings-save-btn" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button className="settings-action-btn settings-cancel-btn" onClick={() => setEditField(null)} disabled={isSaving}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="settings-field-row">
+            <span className="settings-field-value">************</span>
+            <button className="settings-edit-btn" onClick={() => startEdit('password')}>Edit</button>
+          </div>
+        )}
+      </div>
+
+      {/* Danger Zone */}
+      {hasHistory && (
+        <div className="settings-field-group" style={{ borderBottom: 'none', marginTop: '10px' }}>
+          <label className="settings-field-label" style={{ color: 'var(--destructive)' }}>Danger Zone</label>
+          <div className="settings-field-row">
+            <span className="settings-field-value" style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
+              Permanently delete all question & answer pairs.
+            </span>
+            <button 
+              className="settings-edit-btn" 
+              style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)' }}
+              onClick={onClearHistory}
+            >
+              Clear History
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function App() {
   // Theme state defaulting to system theme
@@ -109,6 +285,19 @@ function App() {
 
   // Navigation View
   const [currentView, setCurrentView] = useState<'login' | 'register' | 'dashboard'>('login');
+
+  // Dashboard Sub-Views State
+  const [dashboardView, setDashboardView] = useState<'chat' | 'history' | 'themes' | 'settings'>('chat');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    if (!isMenuOpen) {
+      stopVoiceSession();
+      setIsMenuOpen(true);
+    } else {
+      setIsMenuOpen(false);
+    }
+  };
 
   // Auth State
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -930,136 +1119,193 @@ function App() {
     );
   }
 
+  const maskColor: [number, number, number] = theme === 'dark' ? [24, 26, 36] : [245, 247, 250];
+
   return (
-    <div className="dashboard-layout">
-      {/* Sidebar: Chat History */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo-container">
-            <MessageSquare className="logo-icon" size={24} />
-            <h2 className="logo-text">Interview.ai</h2>
-          </div>
-        </div>
-
-        <div className="sidebar-content">
-          <h3>Saved Q&A Pairs</h3>
-          {isLoadingHistory ? (
-            <div style={{ textAlign: 'center', color: '#6b7280', padding: '20px' }}>
-              <RefreshCw size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
-              <span>Loading...</span>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="empty-history">No conversation records. Start an interview to capture your thoughts!</div>
-          ) : (
-            <div className="history-list">
-              {history.map((item) => (
-                <div key={item.id} className="history-item">
-                  <div className="history-q">Q: {item.question}</div>
-                  <div className="history-a">A: {item.answer}</div>
-                  <div className="history-meta">
-                    <span>
-                      <Calendar size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                      {parseUTCTimestamp(item.timestamp).toLocaleDateString()} {parseUTCTimestamp(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <button className="delete-item-btn" onClick={() => deletePair(item.id)} title="Delete recording">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="sidebar-footer">
-          {history.length > 0 && (
-            <button className="clear-btn" onClick={clearHistory}>Clear Database History</button>
-          )}
-          <div className="user-profile">
-            <div className="avatar">
-              {user?.name ? user.name[0].toUpperCase() : 'D'}
-            </div>
-            <div className="profile-info">
-              <div className="profile-name">{user?.name}</div>
-              <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user?.email}
-              </div>
-            </div>
-            <button className="logout-btn" onClick={handleLogout} title="Log Out">
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Panel: Audio Console & Dialogue */}
-      <main className="console-panel">
-        <header className="console-header">
-          <div className="console-title-container">
-            <h2>AI Interview Console</h2>
-            <p>Your session audio is processed on this machine. Data is stored locally.</p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              className="theme-toggle-btn"
-              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            >
-              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-            </button>
-
-            <div className="status-container">
-              <span className={`status-dot ${wsStatus}`}></span>
-              <span className={`status-text ${wsStatus}`}>{wsStatus}</span>
-            </div>
-          </div>
+    <div className="app-viewport">
+      <InkReveal maskColor={maskColor} />
+      <div className="app-card">
+        {/* Top Header Bar */}
+        <header className="app-header">
+          <button 
+            className="menu-toggle-btn" 
+            onClick={toggleMenu} 
+            title={isMenuOpen ? "Close menu" : "Open menu"}
+          >
+            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          
+          <h1 
+            className="app-title clickable-title" 
+            onClick={() => { setDashboardView('chat'); setIsMenuOpen(false); }}
+          >
+            Interviewer AI
+          </h1>
+          
+          <button className="logout-action-btn" onClick={handleLogout} title="Log Out">
+            Logout
+          </button>
         </header>
 
-        {/* Real-time Dialogue bubble listing */}
-        <section className="dialogue-container">
-          {dialogue.length === 0 ? (
-            <div className="welcome-placeholder">
-              <Shield className="welcome-icon" size={64} />
-              <h2>Voice Archiving Console</h2>
-              <p style={{ maxWidth: '450px', textAlign: 'center', marginTop: '8px' }}>
-                Toggle the microphone button below to initiate a secure live stream.
-                Answer the AI interviewer's questions to preserve your legacy.
-              </p>
+        {/* Bottom Section */}
+        <div className="app-body">
+          {isMenuOpen ? (
+            /* Navigation Menu Overlay */
+            <div className="nav-menu-container" key="menu">
+              <div 
+                className={`nav-menu-item ${dashboardView === 'chat' ? 'active' : ''}`}
+                onClick={() => { setDashboardView('chat'); setIsMenuOpen(false); }}
+              >
+                Current Convo
+              </div>
+              <div className="nav-menu-divider"></div>
+              <div 
+                className={`nav-menu-item ${dashboardView === 'history' ? 'active' : ''}`}
+                onClick={() => { setDashboardView('history'); setIsMenuOpen(false); }}
+              >
+                Past Convos
+              </div>
+              <div className="nav-menu-divider"></div>
+              <div 
+                className={`nav-menu-item ${dashboardView === 'themes' ? 'active' : ''}`}
+                onClick={() => { setDashboardView('themes'); setIsMenuOpen(false); }}
+              >
+                Themes
+              </div>
+              <div className="nav-menu-divider"></div>
+              <div 
+                className={`nav-menu-item ${dashboardView === 'settings' ? 'active' : ''}`}
+                onClick={() => { setDashboardView('settings'); setIsMenuOpen(false); }}
+              >
+                User Settings
+              </div>
             </div>
           ) : (
+            /* Active view content */
             <>
-              {dialogue.map((entry) => (
-                <div key={entry.id} className={`dialogue-bubble ${entry.role}`}>
-                  <p>{renderMessageText(entry.text)}</p>
-                  <span className="bubble-meta">
-                    {entry.role === 'interviewer' ? 'Gemini AI' : user?.name || 'User'} • {entry.timestamp.toLocaleTimeString()}
-                  </span>
+              {dashboardView === 'chat' && (
+                <div className="chat-view-container" key="chat">
+                  {/* Dialogue Area */}
+                  <section className="dialogue-container">
+                    {dialogue.length === 0 ? null : (
+                      <>
+                        {dialogue.map((entry) => (
+                          <div key={entry.id} className={`dialogue-bubble ${entry.role}`}>
+                            <p>{renderMessageText(entry.text)}</p>
+                            <span className="bubble-meta">
+                              {entry.role === 'interviewer' ? 'Gemini AI' : user?.name || 'User'} • {entry.timestamp.toLocaleTimeString()}
+                            </span>
+                          </div>
+                        ))}
+                        <div ref={dialogueEndRef} />
+                      </>
+                    )}
+                  </section>
+
+                  {/* Floating Centered Mic Control */}
+                  <div className="floating-mic-container">
+                    <VoiceChat
+                      isListening={isVoiceActive && wsStatus === 'connected' && !isSpeaking}
+                      isProcessing={wsStatus === 'connecting'}
+                      isSpeaking={isSpeaking}
+                      onClick={isVoiceActive ? stopVoiceSession : startVoiceSession}
+                      statusText={
+                        wsStatus === 'connecting'
+                          ? 'NEGOTIATING HANDSHAKE...'
+                          : wsStatus === 'connected'
+                            ? (isSpeaking ? 'GEMINI TALKING...' : 'STREAMING SOUND INPUT • CLICK TO FINISH')
+                            : 'CONSOLE IDLE • UNMUTE MIC TO CHAT'
+                      }
+                      disabled={wsStatus === 'connecting'}
+                    />
+                  </div>
                 </div>
-              ))}
-              <div ref={dialogueEndRef} />
+              )}
+
+              {dashboardView === 'history' && (
+                <div className="history-view-container" key="history">
+                  <div className="history-container">
+                    {isLoadingHistory ? (
+                      <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
+                        <RefreshCw size={24} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
+                        <span>Loading history...</span>
+                      </div>
+                    ) : history.length === 0 ? (
+                      <div className="empty-history" style={{ padding: '40px 20px' }}>
+                        No conversation records. Start an interview to capture your thoughts!
+                      </div>
+                    ) : (
+                      <div className="history-list-wrapper">
+                        {history.map((item) => (
+                          <div key={item.id} className="history-block">
+                            <div className="history-block-q">Q: {item.question}</div>
+                            <div className="history-block-a">A: {item.answer}</div>
+                            <div className="history-block-footer">
+                              <span>
+                                <Calendar size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                                {parseUTCTimestamp(item.timestamp).toLocaleDateString()} {parseUTCTimestamp(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <button 
+                              className="history-block-trash" 
+                              onClick={() => deletePair(item.id)} 
+                              title="Delete QA pair"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {dashboardView === 'themes' && (
+                <div className="themes-view-container" key="themes">
+                  <div className="themes-grid">
+                    <div 
+                      className={`theme-card light-card ${theme === 'light' ? 'active' : ''}`}
+                      onClick={() => setTheme('light')}
+                    >
+                      <div className="theme-color-preview" style={{ backgroundColor: '#3a5ba0' }}></div>
+                      <div className="theme-name">Light Theme</div>
+                      <div className="theme-desc">Primary Palette</div>
+                    </div>
+                    
+                    <div 
+                      className={`theme-card dark-card ${theme === 'dark' ? 'active' : ''}`}
+                      onClick={() => setTheme('dark')}
+                    >
+                      <div className="theme-color-preview" style={{ backgroundColor: '#ffe066' }}></div>
+                      <div className="theme-name">Dark Theme</div>
+                      <div className="theme-desc">High-Contrast Palette</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {dashboardView === 'settings' && (
+                <div className="settings-view-container" key="settings">
+                  <UserSettings 
+                    user={user} 
+                    token={token} 
+                    apiURL={API_URL} 
+                    onUpdateProfile={(updatedUser, newToken) => {
+                      setUser(updatedUser);
+                      if (newToken) {
+                        setToken(newToken);
+                      }
+                    }}
+                    onClearHistory={clearHistory}
+                    hasHistory={history.length > 0}
+                  />
+                </div>
+              )}
             </>
           )}
-        </section>
-
-        {/* Voice control dashboard */}
-        <footer className="control-bar" style={{ padding: '20px 30px' }}>
-          <VoiceChat
-            isListening={isVoiceActive && wsStatus === 'connected' && !isSpeaking}
-            isProcessing={wsStatus === 'connecting'}
-            isSpeaking={isSpeaking}
-            onClick={isVoiceActive ? stopVoiceSession : startVoiceSession}
-            statusText={
-              wsStatus === 'connecting'
-                ? 'NEGOTIATING HANDSHAKE...'
-                : wsStatus === 'connected'
-                  ? (isSpeaking ? 'GEMINI TALKING...' : 'STREAMING SOUND INPUT • CLICK TO FINISH')
-                  : 'CONSOLE IDLE • UNMUTE MIC TO CHAT'
-            }
-            disabled={wsStatus === 'connecting'}
-          />
-        </footer>
-      </main>
+        </div>
+      </div>
     </div>
   );
 }

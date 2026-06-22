@@ -164,6 +164,69 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+app.put('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const userId = req.user.id;
+
+    const existingUser = await dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    let updateFields = [];
+    let params = [];
+
+    if (name !== undefined) {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return res.status(400).json({ error: 'Name cannot be empty' });
+      }
+      updateFields.push('name = ?');
+      params.push(trimmedName);
+    }
+
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) {
+        return res.status(400).json({ error: 'Email cannot be empty' });
+      }
+      // Check if email already in use by another user
+      const emailUser = await dbGet('SELECT id FROM users WHERE email = ? AND id != ?', [normalizedEmail, userId]);
+      if (emailUser) {
+        return res.status(400).json({ error: 'Email is already in use' });
+      }
+      updateFields.push('email = ?');
+      params.push(normalizedEmail);
+    }
+
+    if (password !== undefined && password !== '') {
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(password, salt);
+      updateFields.push('password_hash = ?');
+      params.push(password_hash);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(userId); // for WHERE id = ?
+
+    const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+    await dbRun(sql, params);
+
+    const updatedUser = await dbGet('SELECT id, name, email FROM users WHERE id = ?', [userId]);
+    const token = jwt.sign({ id: updatedUser.id, name: updatedUser.name, email: updatedUser.email }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ token, user: updatedUser });
+  } catch (err) {
+    console.error('Error updating user profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/history', authenticateToken, async (req, res) => {
   try {
     const rows = await dbAll('SELECT * FROM qa_pairs WHERE user_id = ? ORDER BY timestamp ASC', [req.user.id]);

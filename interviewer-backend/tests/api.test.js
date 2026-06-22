@@ -97,6 +97,61 @@ describe('Interviewer Backend REST API Integration Tests', () => {
 
       expect(res.status).toBe(401);
     });
+
+    it('should update user profile name and email successfully', async () => {
+      const res = await request(app)
+        .put('/api/auth/me')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          name: 'Updated Name',
+          email: 'updated@test.com'
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('token');
+      expect(res.body.user.name).toBe('Updated Name');
+      expect(res.body.user.email).toBe('updated@test.com');
+      userToken = res.body.token;
+    });
+
+    it('should update user password successfully and login with new credentials', async () => {
+      const resUpdate = await request(app)
+        .put('/api/auth/me')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          password: 'newpassword123'
+        });
+
+      expect(resUpdate.status).toBe(200);
+
+      const resLogin = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'updated@test.com',
+          password: 'newpassword123'
+        });
+
+      expect(resLogin.status).toBe(200);
+      expect(resLogin.body).toHaveProperty('token');
+      userToken = resLogin.body.token;
+    });
+
+    it('should deny profile updates without token', async () => {
+      const res = await request(app)
+        .put('/api/auth/me')
+        .send({ name: 'Hackerman' });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should fail to update name to empty', async () => {
+      const res = await request(app)
+        .put('/api/auth/me')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ name: '' });
+
+      expect(res.status).toBe(400);
+    });
   });
 
   describe('Protected Q&A History Endpoints', () => {
