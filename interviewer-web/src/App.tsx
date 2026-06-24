@@ -825,7 +825,8 @@ function App() {
             className="app-title clickable-title" 
             onClick={() => { setDashboardView('chat'); setIsMenuOpen(false); }}
           >
-            Interviewer AI
+            <img src="/logo.svg" className="app-logo" alt="Logo" />
+            <span>Interviewer AI</span>
           </h1>
           
           <button className="logout-action-btn" onClick={handleLogout} title="Log Out">

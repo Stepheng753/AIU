@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, User, AlertCircle, MessageSquare } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle } from 'lucide-react';
 import InkReveal from './ui/ink-reveal';
 import type { UserProfile } from '../App';
 
@@ -72,8 +72,8 @@ export default function AuthView({
       <InkReveal maskColor={computedMaskColor} />
       <div className="auth-card">
         <div className="auth-header">
-          <div className="logo-container" style={{ justifyContent: 'center', marginBottom: '15px' }}>
-            <MessageSquare className="logo-icon animate-pulse" size={36} />
+          <div className="logo-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '15px' }}>
+            <img src="/logo.svg" className="logo-icon animate-pulse" style={{ height: '48px', width: 'auto' }} alt="Logo" />
             <h1 style={{ margin: 0 }}>Interview.ai</h1>
           </div>
           <p>{currentView === 'login' ? 'Preserve your Legacy & Knowledge' : 'Create your Secure Personal Vault'}</p>
