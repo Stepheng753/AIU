@@ -47,7 +47,7 @@ By conducting high-speed, dynamic interviews via the Gemini Live API, we capture
 | :--- | :--- | :--- |
 | **`/aiu-web`** | The React + TypeScript (Vite) frontend web application. | `localhost:5173` |
 | **`/aiu-backend`** | The Express Node.js backend & BFF proxy with SQLite database. | `localhost:3000` |
-| **`/documentation`** | Project architecture, setup guides, secrets, and manual test plans. | N/A |
+| **`/docs`** | Project architecture, setup guides, secrets, and manual test plans. | N/A |
 
 ---
 
