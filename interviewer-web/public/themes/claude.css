@@ -14,6 +14,9 @@
   --popover: #ffffff;
   --primary: #c96442;
   --sidebar: #f5f4ee;
+  --font-mono: IBM Plex Mono, monospace;
+  --font-sans: Inter, sans-serif;
+  --font-serif: Libre Baskerville, serif;
   --secondary: #e9e6dc;
   --background: #faf9f5;
   --foreground: #3d3929;

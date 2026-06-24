@@ -39,8 +39,8 @@ const parseUTCTimestamp = (ts: string) => {
   if (!formatted.includes('T')) {
     formatted = formatted.replace(' ', 'T');
   }
-  const hasTimezone = formatted.endsWith('Z') || 
-                      (formatted.includes('T') && (formatted.indexOf('+', formatted.indexOf('T')) !== -1 || formatted.indexOf('-', formatted.indexOf('T')) !== -1));
+  const hasTimezone = formatted.endsWith('Z') ||
+    (formatted.includes('T') && (formatted.indexOf('+', formatted.indexOf('T')) !== -1 || formatted.indexOf('-', formatted.indexOf('T')) !== -1));
   if (!hasTimezone) {
     formatted += 'Z';
   }
@@ -141,19 +141,13 @@ function App() {
   // Apply custom theme stylesheet link loading
   useEffect(() => {
     let link = document.getElementById('dynamic-theme-stylesheet') as HTMLLinkElement;
-    if (activeTheme === 'classic') {
-      if (link) {
-        link.remove();
-      }
-    } else {
-      if (!link) {
-        link = document.createElement('link');
-        link.id = 'dynamic-theme-stylesheet';
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
-      }
-      link.href = `/themes/${activeTheme}.css`;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'dynamic-theme-stylesheet';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
     }
+    link.href = `/themes/${activeTheme}.css`;
     localStorage.setItem('activeTheme', activeTheme);
   }, [activeTheme]);
 
@@ -211,6 +205,12 @@ function App() {
   const currentInterviewerBubbleIdRef = useRef<string | null>(null);
   const savedPairsRef = useRef<Set<string>>(new Set());
   const isWaitingForModelResponseRef = useRef<boolean>(true);
+
+  const selectedCategoryRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedCategoryRef.current = selectedCategory;
+  }, [selectedCategory]);
 
   const updateDialogueState = (newDialogue: ChatLogEntry[]) => {
     dialogueRef.current = newDialogue;
@@ -307,7 +307,7 @@ function App() {
             body: JSON.stringify({
               question: interviewerMsg.text,
               answer: userMsg.text,
-              category: selectedCategory
+              category: selectedCategoryRef.current
             })
           });
           if (res.ok) {
@@ -737,7 +737,7 @@ function App() {
             body: JSON.stringify({
               question: current.text,
               answer: next.text,
-              category: selectedCategory
+              category: selectedCategoryRef.current
             })
           });
         } catch (err) {
@@ -840,22 +840,22 @@ function App() {
       <div className="app-card">
         {/* Top Header Bar */}
         <header className="app-header">
-          <button 
-            className="menu-toggle-btn" 
-            onClick={toggleMenu} 
+          <button
+            className="menu-toggle-btn"
+            onClick={toggleMenu}
             title={isMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          
-          <h1 
-            className="app-title clickable-title" 
+
+          <h1
+            className="app-title clickable-title"
             onClick={() => { setDashboardView('chat'); setIsMenuOpen(false); }}
           >
             <img src="/logo.svg" className="app-logo" alt="Logo" />
             <span>Interviewer AI</span>
           </h1>
-          
+
           <button className="logout-action-btn" onClick={handleLogout} title="Log Out">
             Logout
           </button>
@@ -866,28 +866,28 @@ function App() {
           {isMenuOpen ? (
             /* Navigation Menu Overlay */
             <div className="nav-menu-container" key="menu">
-              <div 
+              <div
                 className={`nav-menu-item ${dashboardView === 'chat' ? 'active' : ''}`}
                 onClick={() => { setDashboardView('chat'); setIsMenuOpen(false); }}
               >
                 Current Convo
               </div>
               <div className="nav-menu-divider"></div>
-              <div 
+              <div
                 className={`nav-menu-item ${dashboardView === 'history' ? 'active' : ''}`}
                 onClick={() => { setDashboardView('history'); setIsMenuOpen(false); }}
               >
                 Past Convos
               </div>
               <div className="nav-menu-divider"></div>
-              <div 
+              <div
                 className={`nav-menu-item ${dashboardView === 'themes' ? 'active' : ''}`}
                 onClick={() => { setDashboardView('themes'); setIsMenuOpen(false); }}
               >
                 Themes
               </div>
               <div className="nav-menu-divider"></div>
-              <div 
+              <div
                 className={`nav-menu-item ${dashboardView === 'settings' ? 'active' : ''}`}
                 onClick={() => { setDashboardView('settings'); setIsMenuOpen(false); }}
               >

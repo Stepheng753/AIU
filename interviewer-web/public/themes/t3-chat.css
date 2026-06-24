@@ -14,6 +14,9 @@
   --popover: #ffffff;
   --primary: #a84370;
   --sidebar: #f3e4f6;
+  --font-mono: JetBrains Mono, monospace;
+  --font-sans: Inter, sans-serif;
+  --font-serif: Libre Baskerville, serif;
   --secondary: #f1c4e6;
   --background: #faf5fa;
   --foreground: #501854;

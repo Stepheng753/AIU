@@ -48,8 +48,12 @@ export default function ThemesView({
               key={t.id}
               className={`theme-card ${activeTheme === t.id ? 'active' : ''}`}
               onClick={() => setActiveTheme(t.id)}
+              style={{ fontFamily: t.fontFamily }}
             >
-              <div className="theme-color-preview" style={{ backgroundColor: t.previewColor }}></div>
+              <div 
+                className="theme-color-preview" 
+                style={{ backgroundColor: theme === 'dark' && t.previewColorDark ? t.previewColorDark : t.previewColor }}
+              ></div>
               <div className="theme-meta-info">
                 <div className="theme-name">{t.name}</div>
                 <div className="theme-desc">{t.description}</div>
