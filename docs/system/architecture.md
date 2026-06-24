@@ -39,7 +39,7 @@ sequenceDiagram
 1. **Submission**: The user enters their email and password. The client posts them to `/api/auth/login`.
 2. **Database Lookup**: The backend queries the SQLite database for a user matching the provided email.
 3. **Verification**: If found, `bcrypt.compare()` compares the plain text password with the stored password hash.
-4. **Token Generation**: If verified, a JSON Web Token (JWT) is signed using the server's private `JWT_SECRET` (configured with an expiration of 7 days).
+4. **Token Generation**: If verified, a JSON Web Token (JWT) is signed using the server's private `GEMINI_API_KEY` (which acts as the JWT signing secret, configured with an expiration of 7 days).
 5. **Response**: The JWT token and basic user details are returned to the client. The client stores the token in local storage for subsequent requests.
 
 ---
@@ -50,8 +50,9 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     Client (Web App)->>+BFF Backend: WebSocket Connect (ws://localhost:3000/?token=JWT)
-    BFF Backend->>BFF Backend: Verify JWT using JWT_SECRET
+    BFF Backend->>BFF Backend: Verify JWT using GEMINI_API_KEY
     BFF Backend->>+Gemini Live WS: Connect (wss://generativelanguage.googleapis.com/ws/...)
+
     Gemini Live WS-->>-BFF Backend: Connection Opened
     BFF Backend->>Gemini Live WS: Send setup configuration frame (model, audio modality, system instructions)
     BFF Backend->>Client (Web App): Send "proxy_status: connected" event

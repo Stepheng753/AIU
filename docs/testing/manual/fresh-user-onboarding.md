@@ -6,7 +6,7 @@ This test validates registering a new user, logging in, selecting an interview t
 
 ## Prerequisites
 Ensure both the backend server and frontend Vite server are running. 
-See the **[Setup Guide](file:///home/stepheng753/Development/AIU/docs/system/setup.md)** for details.
+See the **[Setup Guide](../../system/setup.md)** for details.
 
 ---
 

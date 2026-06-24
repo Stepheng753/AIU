@@ -1,7 +1,7 @@
 // Set test environments
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_PATH = ':memory:';
-process.env.JWT_SECRET = 'test_secret_key';
+process.env.GEMINI_API_KEY = 'test_secret_key';
 
 const request = require('supertest');
 const { app, server, db } = require('../src/index');

@@ -62,7 +62,36 @@ CREATE TABLE IF NOT EXISTS qa_pairs (
 
 - **On Delete Cascade**: Removing a user from the `users` table automatically deletes all associated QA pairs in `qa_pairs`, ensuring privacy and strict user isolation.
 - **SQLite Configuration**: Foreign keys must be enabled on every SQLite database connection by executing:
-- **Automatic Migration**: The backend dynamically checks the schema on boot and applies a schema patch via `ALTER TABLE` to add the `category` column to existing database files if it is missing.
   ```sql
   PRAGMA foreign_keys = ON;
   ```
+- **Automatic Migration**: The backend dynamically checks the schema on boot and applies a schema patch via `ALTER TABLE` to add the `category` column to existing database files if it is missing.
+
+---
+
+## 3. Inspecting the Database via CLI
+
+To inspect the SQLite database file (`aiu.db`) directly from your server's terminal:
+
+1. **SSH into the server and run `sqlite3`**:
+   ```bash
+   sqlite3 ~/Development/AIU/aiu-backend/aiu.db
+   ```
+   *(If not installed, run: `sudo apt update && sudo apt install sqlite3`)*
+
+2. **Configure clean column/box formatting**:
+   ```sql
+   .headers on
+   .mode box
+   ```
+
+3. **Useful Shell Commands**:
+   * **List tables**: `.tables`
+   * **Show schema of a table**: `.schema <table_name>`
+   * **Query rows (always end with a semicolon `;`)**:
+     ```sql
+     SELECT * FROM users LIMIT 5;
+     SELECT * FROM qa_pairs ORDER BY timestamp DESC LIMIT 5;
+     ```
+   * **Exit SQLite shell**: `.exit`
+

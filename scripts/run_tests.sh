@@ -1,7 +1,9 @@
 #!/bin/bash
-
 # Exit on any failure
 set -e
+
+# Navigate to workspace root relative to script location
+cd "$(dirname "$0")/.."
 
 # Harmless visual spacer
 echo ""

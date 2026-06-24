@@ -166,7 +166,7 @@ npm run build
 
 Once your initial deployment is working, you can automate updates on every push to the `main` branch. 
 
-Add the following YAML definition to `.github/workflows/deploy.yml` in your repository:
+Add the following YAML definition to `.github/workflows/deploy.yaml` in your repository:
 
 ```yaml
 name: Deploy to Flash-Server
@@ -195,37 +195,15 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: flash-server
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GEMINI_API_KEY
           script: |
-            # Source profile to ensure NVM node and PM2 are in the PATH
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            echo "🚀 Deploying AIU Project..."
-
             cd ~/Development/AIU
             git pull origin main
-
-            # 1. Update Backend
-            echo "--- Processing Backend ---"
-            cd aiu-backend
-            npm install
-            pm2 restart aiu-backend || PORT=3000 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start src/index.js --name "aiu-backend"
-            pm2 save
-
-            # 2. Compile Frontend
-            echo "--- Processing Frontend ---"
-            cd ../aiu-web
-            npm install
-            echo "VITE_API_URL=https://AIU.stepheng753.com/api" > .env.production
-            echo "VITE_WS_URL=wss://AIU.stepheng753.com/ws" >> .env.production
-            npm run build
-
-            # 3. Reload Nginx
-            echo "--- Reloading Nginx ---"
-            sudo nginx -t
-            sudo systemctl reload nginx
-
-            echo "✅ All Systems Deployed!"
+            chmod +x scripts/deploy_prod.sh
+            ./scripts/deploy_prod.sh
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
 
 *Note: Ensure `SERVER_IP`, `SSH_PRIVATE_KEY`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, and `GEMINI_API_KEY` are saved in your GitHub Actions secrets.*
+

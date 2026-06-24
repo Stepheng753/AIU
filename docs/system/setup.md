@@ -20,7 +20,7 @@ Both frontend and backend packages require local environment configurations. Tem
 Create a file at `/aiu-backend/.env` matching the template:
 ```env
 PORT=3000
-JWT_SECRET=your_jwt_secret_token
+DATABASE_PATH="./aiu.db"
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
@@ -73,13 +73,19 @@ VITE_WS_URL=ws://localhost:3000
 
 Alternatively, you can boot both servers concurrently from the root directory using the helper script:
 ```bash
-./run_dev.sh
+./scripts/run_dev.sh
 ```
 Press `Ctrl+C` inside the terminal to terminate both servers cleanly.
 
 ---
 
 ## 4. Run Tests
+
+### Run All Tests Concurrently
+You can execute both test suites together from the root directory using the helper script:
+```bash
+./scripts/run_tests.sh
+```
 
 ### Backend Tests (Jest)
 From `aiu-backend/`:
@@ -92,3 +98,4 @@ From `aiu-web/`:
 ```bash
 npm run test
 ```
+

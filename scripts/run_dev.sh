@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Navigate to workspace root relative to script location
+cd "$(dirname "$0")/.."
+
 # Function to clean up background processes on exit
 cleanup() {
   echo ""

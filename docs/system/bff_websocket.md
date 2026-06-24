@@ -18,7 +18,7 @@ To initiate a live interview session, the client establishes a WebSocket connect
 - `lastQuestion`: Optional. URL-encoded string representing the last interviewer question to reiterate if resuming.
 
 ### Authentication
-The backend extracts the `token` search parameter and verifies it against the `JWT_SECRET`. If verification fails, the connection is aborted with status code `1008` (Policy Violation).
+The backend extracts the `token` search parameter and verifies it against the signing secret (which is the `GEMINI_API_KEY`). If verification fails, the connection is aborted with status code `1008` (Policy Violation).
 
 ---
 
@@ -28,7 +28,7 @@ Once authorized, the backend establishes an upstream connection to Google's Gene
 `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=GEMINI_API_KEY`
 
 ### Setup Configuration Frame
-Upon connection, the backend loads settings dynamically from [model_config.yaml](file:///home/stepheng753/Development/AIU/aiu-backend/model_config.yaml) and pushes the configuration frame to Gemini:
+Upon connection, the backend loads settings dynamically from [model_config.yaml](../../aiu-backend/model_config.yaml) and pushes the configuration frame to Gemini:
 ```json
 {
   "setup": {
