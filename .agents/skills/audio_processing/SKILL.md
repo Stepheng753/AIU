@@ -1,3 +1,8 @@
+---
+name: audio-processing
+description: Captures 16-bit linear PCM audio chunks at 16kHz or 24kHz using the Web Audio API, and plays back incoming base64 PCM streams.
+---
+
 # Agent Skill: Web Audio API PCM Capturing & Playback
 
 This document details client-side skills for capturing 16-bit linear PCM audio chunks at 16kHz or 24kHz using the Web Audio API, and managing incoming base64 PCM streams for playback.

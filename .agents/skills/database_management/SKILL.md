@@ -1,3 +1,8 @@
+---
+name: database-management
+description: Manages, queries, and migrates local SQLite databases and transitions schemas to PostgreSQL.
+---
+
 # Agent Skill: SQLite Database Management
 
 This guide covers commands, configurations, and scripts for managing, querying, and preparing to migrate the SQLite database used by **AIU** in development.

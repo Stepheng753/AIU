@@ -1,3 +1,8 @@
+---
+name: agent-test
+description: Executes automated browser E2E tests for registration, login, and voice socket connection verification using browser preview tools.
+---
+
 # Agent Skill: Automated Browser E2E Testing
 
 This guide instructs AI agents on how to execute automated browser E2E tests for registration, login, and voice socket connection verification using browser preview tools.

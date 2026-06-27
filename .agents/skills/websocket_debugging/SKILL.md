@@ -1,3 +1,8 @@
+---
+name: websocket-debugging
+description: Logs, intercepts, and debugs WebSocket communication frames flowing through the BFF WebSocket Proxy between the web client and Google's Gemini Live API.
+---
+
 # Agent Skill: WebSocket Proxy Debugging
 
 This guide outlines techniques for logging, intercepting, and debugging WebSocket communication frames flowing through the BFF WebSocket Proxy between the web client and Google's Gemini Live API.
