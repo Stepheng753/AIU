@@ -51,7 +51,7 @@ export default function ChatView({
       title: 'Life Advice & Wisdom',
       description: 'Document your personal values, life lessons, and wisdom for future generations.',
       icon: <Compass size={24} />,
-      color: 'var(--secondary, #f7c873)'
+      color: 'var(--primary)'
     },
     {
       id: 'family',
@@ -88,7 +88,7 @@ export default function ChatView({
               className={`category-card ${cat.id}`}
               onClick={() => handleSelectCategory(cat.id)}
             >
-              <div className="category-card-icon" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
+              <div className="category-card-icon" style={{ backgroundColor: `color-mix(in srgb, ${cat.color} 15%, transparent)`, color: cat.color }}>
                 {cat.icon}
               </div>
               <div className="category-card-info">
