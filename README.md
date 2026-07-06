@@ -27,6 +27,8 @@ By conducting high-speed, dynamic interviews via the Gemini Live API, we capture
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"/>
+  <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native"/>
+  <img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/>
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"/>
@@ -35,17 +37,18 @@ By conducting high-speed, dynamic interviews via the Gemini Live API, we capture
 </p>
 
 ### Key Focus Areas
-1. **Knowledge Preservation:** Capturing life stories, advice, and expertise through an intuitive web interface.
+1. **Knowledge Preservation:** Capturing life stories, advice, and expertise through intuitive web and mobile interfaces.
 2. **AI Identity Cloning:** Organizing isolated datasets (Q&A pairs) specifically structured to fine-tune future LLMs and TTS models.
-3. **High-Speed Audio:** Utilizing WebSockets for bidirectional low-latency audio streaming with the AI interviewer using Web Audio APIs.
+3. **High-Speed Audio:** Utilizing WebSockets for bidirectional low-latency audio streaming with the AI interviewer using Web Audio and native mobile record pipelines.
 
 ---
 
 ## 🏗️ Repository Structure
 
-| Directory | Description | Default Port |
+| Directory | Description | Default Port / Environment |
 | :--- | :--- | :--- |
 | **`/aiu-web`** | The React + TypeScript (Vite) frontend web application. | `localhost:5173` |
+| **`/aiu-mobile`** | The React Native (Expo) mobile frontend application. | Tailscale `stephen-windows` |
 | **`/aiu-backend`** | The Express Node.js backend & BFF proxy with SQLite database. | `localhost:3000` |
 | **`/docs`** | Project architecture, setup guides, secrets, and manual test plans. | N/A |
 

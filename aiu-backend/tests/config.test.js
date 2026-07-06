@@ -6,7 +6,7 @@ describe('Model Configuration File Validation Tests', () => {
 
 
   it('should locate and successfully parse model_config.yaml', () => {
-    const configPath = path.join(__dirname, '../model_config.yaml');
+    const configPath = path.join(__dirname, '../src/config/model_config.yaml');
     expect(fs.existsSync(configPath)).toBe(true);
 
     const fileContents = fs.readFileSync(configPath, 'utf8');

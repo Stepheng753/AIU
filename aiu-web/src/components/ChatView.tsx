@@ -32,6 +32,12 @@ export default function ChatView({
   setSelectedCategory,
   resetConversation
 }: ChatViewProps) {
+  React.useEffect(() => {
+    if (selectedCategory !== null && dialogue.length > 0) {
+      dialogueEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [dialogue, selectedCategory, dialogueEndRef]);
+
   const categories = [
     {
       id: 'career',

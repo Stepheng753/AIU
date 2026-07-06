@@ -28,7 +28,7 @@ Once authorized, the backend establishes an upstream connection to Google's Gene
 `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=GEMINI_API_KEY`
 
 ### Setup Configuration Frame
-Upon connection, the backend loads settings dynamically from [model_config.yaml](../../aiu-backend/model_config.yaml) and pushes the configuration frame to Gemini:
+Upon connection, the backend loads settings dynamically from [model_config.yaml](../../aiu-backend/src/config/model_config.yaml) and pushes the configuration frame to Gemini:
 ```json
 {
   "setup": {

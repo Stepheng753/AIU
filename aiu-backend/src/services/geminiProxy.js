@@ -47,7 +47,7 @@ function setupGeminiProxy(server) {
       // Load configuration dynamically from YAML
       let config = {};
       try {
-        const configPath = path.join(__dirname, '../../model_config.yaml');
+        const configPath = path.join(__dirname, '../config/model_config.yaml');
         const fileContents = fs.readFileSync(configPath, 'utf8');
         config = yaml.load(fileContents);
       } catch (err) {
@@ -83,10 +83,14 @@ function setupGeminiProxy(server) {
       }
       generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName = activeVoice;
 
-      let systemInstructionText = '';
+      let systemInstructionText = config.basePrompt || '';
       if (categoryConfig.systemInstruction && categoryConfig.systemInstruction.parts && categoryConfig.systemInstruction.parts[0]) {
-        systemInstructionText = categoryConfig.systemInstruction.parts[0].text;
-      } else {
+        if (systemInstructionText) {
+          systemInstructionText += '\n\n' + categoryConfig.systemInstruction.parts[0].text;
+        } else {
+          systemInstructionText = categoryConfig.systemInstruction.parts[0].text;
+        }
+      } else if (!systemInstructionText) {
         systemInstructionText = 'You are a warm, conversational AI interviewer.';
       }
 
@@ -100,6 +104,13 @@ function setupGeminiProxy(server) {
       } catch (dbErr) {
         console.error('Error querying database during WebSocket initialization:', dbErr);
       }
+
+      const firstName = userName && userName !== 'User' ? userName.split(' ')[0] : 'there';
+
+      // Perform placeholder replacement on the main category system instructions
+      systemInstructionText = systemInstructionText
+        .replace(/{userName}/g, firstName)
+        .replace(/{category}/g, category.replace('_', ' '));
 
       const sessionPrompts = config.sessionPrompts || {};
       const getPrompt = (type, key, defaultValue) => {
@@ -118,8 +129,13 @@ function setupGeminiProxy(server) {
         const sysInstTemplate = getPrompt('resume', 'systemInstruction', defaultSysInst);
         const triggerTemplate = getPrompt('resume', 'triggerMessage', defaultTrigger);
 
-        const sysInst = sysInstTemplate.replace(/{lastQuestion}/g, lastQuestion);
-        const triggerText = triggerTemplate.replace(/{lastQuestion}/g, lastQuestion);
+        const sysInst = sysInstTemplate
+          .replace(/{lastQuestion}/g, lastQuestion)
+          .replace(/{userName}/g, firstName)
+          .replace(/{category}/g, formatCategory);
+        const triggerText = triggerTemplate
+          .replace(/{lastQuestion}/g, lastQuestion)
+          .replace(/{userName}/g, firstName);
 
         systemInstructionText += `\n\n${sysInst}`;
 
@@ -156,7 +172,7 @@ function setupGeminiProxy(server) {
 
         let knowledgeText = '';
         if (currentCategoryPairs.length > 0) {
-          knowledgeText += headerTemplate.replace(/{userName}/g, userName);
+          knowledgeText += headerTemplate.replace(/{userName}/g, firstName);
           currentCategoryPairs.forEach((pair) => {
             knowledgeText += `- Question: "${pair.question}"\n  Answer: "${pair.answer}"\n`;
           });
@@ -176,12 +192,12 @@ function setupGeminiProxy(server) {
         }
 
         const sysInst = sysInstTemplate
-          .replace(/{userName}/g, userName)
+          .replace(/{userName}/g, firstName)
           .replace(/{category}/g, formatCategory);
 
-        const triggerText = triggerTemplate.replace(/{userName}/g, userName);
+        const triggerText = triggerTemplate.replace(/{userName}/g, firstName);
 
-        systemInstructionText += `${knowledgeText}\n${sysInst}`;
+        systemInstructionText += `\n\n${knowledgeText}\n${sysInst}`;
 
         triggerMsg = {
           clientContent: {
@@ -198,8 +214,11 @@ function setupGeminiProxy(server) {
         const defaultSysInst = "Your instructions:\n1. Greet the user warmly. Welcome them to AIU and introduce the application. Explain that AIU is a platform designed to conduct high-fidelity voice interviews to preserve their stories, wisdom, and life experiences, which will ultimately be used to fine-tune a personalized AI replica that authentically imitates them.\n2. Tell them you would love to get to know them and ask for their name.";
         const defaultTrigger = "Please start the interview now. Welcome me, introduce AIU, and ask for my name.";
 
-        const sysInst = getPrompt('newUser', 'systemInstruction', defaultSysInst);
-        const triggerText = getPrompt('newUser', 'triggerMessage', defaultTrigger);
+        const sysInst = getPrompt('newUser', 'systemInstruction', defaultSysInst)
+          .replace(/{userName}/g, firstName)
+          .replace(/{category}/g, formatCategory);
+        const triggerText = getPrompt('newUser', 'triggerMessage', defaultTrigger)
+          .replace(/{userName}/g, firstName);
 
         systemInstructionText += `\n\n${sysInst}`;
 
