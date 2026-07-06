@@ -99,48 +99,4 @@ From `aiu-web/`:
 npm run test
 ```
 
----
-
-## 5. Mobile App Setup (React Native + Expo)
-
-The mobile client is built using React Native and Expo. Because of network virtualization sandbox boundaries (like WSL Mirrored Mode) and local Wi-Fi router AP isolation, we utilize **Tailscale** for peer-to-peer connection routing.
-
-### Prerequisites
-
-1. **Expo Go**: Download the "Expo Go" application from the Apple App Store or Google Play Store on your testing mobile device.
-2. **Tailscale VPN**: Install Tailscale on your host computer (and ensure WSL is authenticated) and your mobile device. Join both to the same Tailnet.
-   - Host Computer Alias: `stephen-windows` (IP: `100.67.12.101`)
-
-### 1. Environment Configurations
-
-Create a local configuration file at `/aiu-mobile/.env`:
-
-```env
-EXPO_PUBLIC_API_URL=http://stephen-windows:3000/api
-EXPO_PUBLIC_WS_URL=ws://stephen-windows:3000
-```
-*Note: If Tailscale MagicDNS fails to resolve the alias on your mobile device, fall back to using the raw IP: `http://100.67.12.101:3000/api`.*
-
-### 2. Backend binding config
-
-When booting your backend development server, ensure it is configured to bind to `0.0.0.0` (all interfaces) rather than `127.0.0.1` so that it listens on your Tailscale interface.
-
-### 3. Installation & Boot
-
-1. Navigate to the mobile directory:
-   ```bash
-   cd aiu-mobile
-   ```
-2. Install npm dependencies:
-   ```bash
-   npm install --legacy-peer-deps
-   ```
-3. Boot the Metro Bundler:
-   You can run the launcher script directly from the root directory:
-   ```bash
-   ./scripts/start_dev_mobile.sh
-   ```
-   *(Or navigate into `aiu-mobile/` and run `npm run start`)*
-4. Scan the QR code displayed in your terminal using the camera app (iOS) or the Expo Go app (Android) to load the application. Both your phone and computer must be signed into your Tailscale network.
-
 

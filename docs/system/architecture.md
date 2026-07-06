@@ -49,20 +49,18 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    Client (Web/Mobile App)->>+BFF Backend: WebSocket Connect (ws://[host]:3000/?token=JWT)
-    Note over Client (Web/Mobile App): Mobile routes via Tailscale alias stephen-windows
+    Client (Web App)->>+BFF Backend: WebSocket Connect (ws://[host]:3000/?token=JWT)
     BFF Backend->>BFF Backend: Verify JWT using GEMINI_API_KEY
     BFF Backend->>+Gemini Live WS: Connect (wss://generativelanguage.googleapis.com/ws/...)
 
     Gemini Live WS-->>-BFF Backend: Connection Opened
     BFF Backend->>Gemini Live WS: Send setup configuration frame (model, audio modality, system instructions)
-    BFF Backend->>Client (Web/Mobile App): Send "proxy_status: connected" event
-    Note over Client (Web/Mobile App), Gemini Live WS: Bidirectional Voice Streaming Commences
+    BFF Backend->>Client (Web App): Send "proxy_status: connected" event
+    Note over Client (Web App), Gemini Live WS: Bidirectional Voice Streaming Commences
 ```
 
 1. **Connection**: The client opens a WebSocket connection to the BFF server, appending the user's JWT token as a query parameter (e.g., `?token=JWT_STRING`).
    - **Web App**: Resolves locally to `localhost:3000`.
-   - **Mobile App**: Resolves to the Tailscale overlay hostname `stephen-windows:3000` (backed by WSL mirrored networking interfaces).
 2. **Authentication**: The backend interceptor parses and verifies the token. If invalid, it immediately terminates the websocket handshake.
 3. **Upstream connection**: The backend opens an outbound WebSocket connection to the Gemini Live WebSocket endpoint using the stored `GEMINI_API_KEY`.
 4. **Configuration**: Once the upstream socket opens, the backend BFF pushes the initial JSON `setup` payload to Gemini, defining the conversation properties, output mode (`AUDIO`), and system prompts.
@@ -75,11 +73,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    Client (Web/Mobile App)->>+BFF Backend: POST /api/pair (question, answer) [Headers: Auth Bearer JWT]
+    Client (Web App)->>+BFF Backend: POST /api/pair (question, answer) [Headers: Auth Bearer JWT]
     BFF Backend->>BFF Backend: Validate JWT and extract User ID
     BFF Backend->>+SQLite DB: INSERT INTO qa_pairs (user_id, question, answer)
     SQLite DB-->>-BFF Backend: Confirm Q&A pair saved
-    BFF Backend-->>-Client (Web/Mobile App): Respond 201 Created (saved QA pair details)
+    BFF Backend-->>-Client (Web App): Respond 201 Created (saved QA pair details)
 ```
 
 1. **Pair Collection**: During or after the session, the conversation yields completed QA pairs.
