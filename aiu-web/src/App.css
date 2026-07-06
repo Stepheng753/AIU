@@ -140,6 +140,7 @@ body {
   margin: 0;
   border: none;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -150,6 +151,9 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background-color: var(--accent-color);
   padding: 20px;
   position: relative;
@@ -280,6 +284,9 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background-color: var(--accent-color);
   padding: 20px;
   position: relative;
@@ -295,6 +302,7 @@ body {
   max-width: 600px;
   height: 800px;
   max-height: 90vh;
+  max-height: 90svh;
   min-height: 500px;
   display: flex;
   flex-direction: column;
@@ -1146,6 +1154,30 @@ body {
   border-color: #ef4444;
   color: #fff;
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+@media (max-width: 768px) {
+  .app-viewport,
+  .auth-container {
+    padding: 12px;
+  }
+
+  .app-card {
+    height: 100%;
+    max-height: calc(100svh - 24px);
+    max-height: calc(100dvh - 24px);
+    min-height: 0;
+    border-radius: 12px;
+  }
+
+  .auth-card {
+    padding: 24px 20px;
+    max-height: calc(100svh - 24px);
+    max-height: calc(100dvh - 24px);
+    min-height: 0;
+    overflow-y: auto;
+    border-radius: 12px;
+  }
 }
 
 @media (max-width: 480px) {
