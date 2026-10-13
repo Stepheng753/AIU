@@ -17,7 +17,7 @@ git pull origin main
 echo "--- Processing Backend ---"
 cd aiu-backend
 npm install
-pm2 restart aiu-backend || PORT=3000 GEMINI_API_KEY="$GEMINI_API_KEY" pm2 start src/index.js --name "aiu-backend"
+GEMINI_API_KEY="$GEMINI_API_KEY" pm2 restart aiu-backend --update-env || PORT=3000 GEMINI_API_KEY="$GEMINI_API_KEY" pm2 start src/index.js --name "aiu-backend"
 pm2 save
 
 # 2. Compile Frontend
